@@ -40,7 +40,11 @@ if (config.nodeEnv !== "production") {
 app.use(express.static(publicPath));
 app.use(requestLogger);
 
-app.use(["/wp-admin/*path", "/wordpress/*path", "/*.php"], (_req, res) => {
+app.use(["/wp-admin/*path", "/wordpress/*path"], (_req, res) => {
+  res.status(404).end();
+});
+
+app.use("/:phpFile(*.php)", (_req, res) => {
   res.status(404).end();
 });
 
