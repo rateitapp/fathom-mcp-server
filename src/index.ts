@@ -44,7 +44,7 @@ app.use(["/wp-admin/*path", "/wordpress/*path"], (_req, res) => {
   res.status(404).end();
 });
 
-app.use("/:phpFile(*.php)", (_req, res) => {
+app.use("/*path{.php}", (_req, res) => {
   res.status(404).end();
 });
 
