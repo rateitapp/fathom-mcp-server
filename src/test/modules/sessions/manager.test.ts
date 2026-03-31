@@ -40,6 +40,16 @@ vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js", () => ({
   },
 }));
 
+vi.mock("@modelcontextprotocol/sdk/server/sse.js", () => ({
+  SSEServerTransport: class MockSseTransport {
+    sessionId = "mock-sse-session-id";
+    handlePostMessage = vi.fn();
+    onclose: (() => void) | null = null;
+
+    constructor(_endpoint: string, _res: unknown) {}
+  },
+}));
+
 import { cleanupExpiredMcpServerOAuthData } from "../../../modules/oauth/service";
 import { SessionManager } from "../../../modules/sessions/manager";
 import {
@@ -262,6 +272,78 @@ describe("SessionManager", () => {
       await sessionManager.shutdown();
 
       expect(vi.getTimerCount()).toBe(0);
+    });
+  });
+
+  describe("createSseSession", () => {
+    it("creates an SSE session and caches it", async () => {
+      vi.mocked(insertSession).mockResolvedValue(undefined);
+      const mockRes = {} as unknown;
+
+      await sessionManager.createSseSession("user-123", mockRes as never);
+
+      expect(insertSession).toHaveBeenCalledWith(
+        "mock-sse-session-id",
+        "user-123",
+      );
+      expect(mockServerConnect).toHaveBeenCalled();
+    });
+
+    it("throws and does not cache when insertSession fails", async () => {
+      vi.mocked(insertSession).mockRejectedValue(new Error("DB error"));
+      const mockRes = {} as unknown;
+
+      await expect(
+        sessionManager.createSseSession("user-123", mockRes as never),
+      ).rejects.toThrow("DB error");
+    });
+  });
+
+  describe("handleSseMessage", () => {
+    it("throws when SSE session not found", async () => {
+      const mockReq = {} as never;
+      const mockRes = {} as never;
+
+      await expect(
+        sessionManager.handleSseMessage(
+          "nonexistent",
+          "user-123",
+          mockReq,
+          mockRes,
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("throws when session belongs to a different user", async () => {
+      vi.mocked(insertSession).mockResolvedValue(undefined);
+      const mockRes = {} as unknown;
+
+      await sessionManager.createSseSession("user-123", mockRes as never);
+
+      await expect(
+        sessionManager.handleSseMessage(
+          "mock-sse-session-id",
+          "different-user",
+          {} as never,
+          {} as never,
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("delegates to handlePostMessage on the SSE transport", async () => {
+      vi.mocked(insertSession).mockResolvedValue(undefined);
+      const mockRes = {} as unknown;
+
+      await sessionManager.createSseSession("user-123", mockRes as never);
+
+      await sessionManager.handleSseMessage(
+        "mock-sse-session-id",
+        "user-123",
+        {} as never,
+        {} as never,
+      );
+
+      expect(mockServerConnect).toHaveBeenCalled();
     });
   });
 });
