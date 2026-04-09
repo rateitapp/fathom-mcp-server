@@ -1,11 +1,1 @@
-# Allow all crawlers
-User-agent: *
-Allow: /
-
-# Sitemap
-Sitemap: https://www.fathom-mcp-server.com/sitemap.xml
-
-# LLM-readable content
-# Standard format: https://llmstxt.org
-# Basic: /llms.txt
-# Full documentation: /llms-full.txt
+noindex
